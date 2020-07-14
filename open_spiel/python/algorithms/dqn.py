@@ -21,10 +21,13 @@ from __future__ import print_function
 import collections
 import random
 import numpy as np
-import sonnet as snt
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from open_spiel.python import rl_agent
+from open_spiel.python import simple_nets
+
+# Temporarily disable TF2 behavior until code is updated.
+tf.disable_v2_behavior()
 
 Transition = collections.namedtuple(
     "Transition",
@@ -97,7 +100,7 @@ class DQN(rl_agent.AbstractAgent):
                player_id,
                state_representation_size,
                num_actions,
-               hidden_layers_sizes,
+               hidden_layers_sizes=128,
                replay_buffer_capacity=10000,
                batch_size=128,
                replay_buffer_class=ReplayBuffer,
@@ -112,10 +115,17 @@ class DQN(rl_agent.AbstractAgent):
                optimizer_str="sgd",
                loss_str="mse"):
     """Initialize the DQN agent."""
+
+    # This call to locals() is used to store every argument used to initialize
+    # the class instance, so it can be copied with no hyperparameter change.
+    self._kwargs = locals()
+
     self.player_id = player_id
     self._session = session
     self._num_actions = num_actions
-    self._layer_sizes = hidden_layers_sizes + [num_actions]
+    if isinstance(hidden_layers_sizes, int):
+      hidden_layers_sizes = [hidden_layers_sizes]
+    self._layer_sizes = hidden_layers_sizes
     self._batch_size = batch_size
     self._update_target_network_every = update_target_network_every
     self._learn_every = learn_every
@@ -127,6 +137,8 @@ class DQN(rl_agent.AbstractAgent):
     self._epsilon_decay_duration = epsilon_decay_duration
 
     # TODO(author6) Allow for optional replay buffer config.
+    if not isinstance(replay_buffer_capacity, int):
+      raise ValueError("Replay buffer capacity not an integer.")
     self._replay_buffer = replay_buffer_class(replay_buffer_capacity)
     self._prev_timestep = None
     self._prev_action = None
@@ -157,9 +169,12 @@ class DQN(rl_agent.AbstractAgent):
         dtype=tf.float32,
         name="legal_actions_mask_ph")
 
-    self._q_network = snt.nets.MLP(output_sizes=self._layer_sizes)
+    self._q_network = simple_nets.MLP(state_representation_size,
+                                      self._layer_sizes, num_actions)
     self._q_values = self._q_network(self._info_state_ph)
-    self._target_q_network = snt.nets.MLP(output_sizes=self._layer_sizes)
+
+    self._target_q_network = simple_nets.MLP(state_representation_size,
+                                             self._layer_sizes, num_actions)
     self._target_q_values = self._target_q_network(self._next_info_state_ph)
 
     # Stop gradient to prevent updates to the target network while learning
@@ -195,13 +210,15 @@ class DQN(rl_agent.AbstractAgent):
         loss_class(labels=target, predictions=predictions))
 
     if optimizer_str == "adam":
-      optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+      self._optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
     elif optimizer_str == "sgd":
-      optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
+      self._optimizer = tf.train.GradientDescentOptimizer(
+          learning_rate=learning_rate)
     else:
       raise ValueError("Not implemented, choose from 'adam' and 'sgd'.")
 
-    self._learn_step = optimizer.minimize(self._loss)
+    self._learn_step = self._optimizer.minimize(self._loss)
+    self._initialize()
 
   def step(self, time_step, is_evaluation=False, add_transition_record=True):
     """Returns the action to be taken and updates the Q-network if needed.
@@ -214,6 +231,7 @@ class DQN(rl_agent.AbstractAgent):
     Returns:
       A `rl_agent.StepOutput` containing the action probs and chosen action.
     """
+
     # Act step: don't act at terminal info states or if its not our turn.
     if (not time_step.last()) and (
         time_step.is_simultaneous_move() or
@@ -262,8 +280,7 @@ class DQN(rl_agent.AbstractAgent):
       time_step: current ts, an instance of rl_environment.TimeStep.
     """
     assert prev_time_step is not None
-    legal_actions = (
-        prev_time_step.observations["legal_actions"][self.player_id])
+    legal_actions = (time_step.observations["legal_actions"][self.player_id])
     legal_actions_mask = np.zeros(self._num_actions)
     legal_actions_mask[legal_actions] = 1.0
     transition = Transition(
@@ -280,17 +297,21 @@ class DQN(rl_agent.AbstractAgent):
     """Create TF ops copying the params of the Q-network to the target network.
 
     Args:
-      q_network: `snt.AbstractModule`. Values are copied from this network.
-      target_q_network: `snt.AbstractModule`. Values are copied to this network.
+      q_network: A q-network object that implements provides the `variables`
+                 property representing the TF variable list.
+      target_q_network: A target q-net object that provides the `variables`
+                        property representing the TF variable list.
 
     Returns:
       A `tf.Operation` that updates the variables of the target.
     """
-    variables = q_network.get_variables()
-    target_variables = target_q_network.get_variables()
+    self._variables = q_network.variables[:]
+    self._target_variables = target_q_network.variables[:]
+    assert self._variables
+    assert len(self._variables) == len(self._target_variables)
     return tf.group([
         tf.assign(target_v, v)
-        for (target_v, v) in zip(target_variables, variables)
+        for (target_v, v) in zip(self._target_variables, self._variables)
     ])
 
   def _epsilon_greedy(self, info_state, legal_actions, epsilon):
@@ -389,3 +410,56 @@ class DQN(rl_agent.AbstractAgent):
   @property
   def step_counter(self):
     return self._step_counter
+
+  def _initialize(self):
+    initialization_weights = tf.group(
+        *[var.initializer for var in self._variables])
+    initialization_target_weights = tf.group(
+        *[var.initializer for var in self._target_variables])
+    initialization_opt = tf.group(
+        *[var.initializer for var in self._optimizer.variables()])
+
+    self._session.run(
+        tf.group(*[
+            initialization_weights, initialization_target_weights,
+            initialization_opt,
+        ]))
+
+  def get_weights(self):
+    variables = [self._session.run(self._q_network.variables)]
+    variables.append(self._session.run(self._target_q_network.variables))
+    return variables
+
+  def copy_with_noise(self, sigma=0.0, copy_weights=True):
+    """Copies the object and perturbates it with noise.
+
+    Args:
+      sigma: gaussian dropout variance term : Multiplicative noise following
+        (1+sigma*epsilon), epsilon standard gaussian variable, multiplies each
+        model weight. sigma=0 means no perturbation.
+      copy_weights: Boolean determining whether to copy model weights (True) or
+        just model hyperparameters.
+
+    Returns:
+      Perturbated copy of the model.
+    """
+    _ = self._kwargs.pop("self", None)
+    copied_object = DQN(**self._kwargs)
+
+    q_network = getattr(copied_object, "_q_network")
+    target_q_network = getattr(copied_object, "_target_q_network")
+
+    if copy_weights:
+      copy_weights = tf.group(*[
+          va.assign(vb * (1 + sigma * tf.random.normal(vb.shape)))
+          for va, vb in zip(q_network.variables, self._q_network.variables)
+      ])
+      self._session.run(copy_weights)
+
+      copy_target_weights = tf.group(*[
+          va.assign(vb * (1 + sigma * tf.random.normal(vb.shape)))
+          for va, vb in zip(target_q_network.variables,
+                            self._target_q_network.variables)
+      ])
+      self._session.run(copy_target_weights)
+    return copied_object

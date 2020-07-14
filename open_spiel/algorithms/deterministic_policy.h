@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_OPEN_SPIEL_ALGORITHMS_DETERMINISTIC_POLICY_H_
-#define THIRD_PARTY_OPEN_SPIEL_ALGORITHMS_DETERMINISTIC_POLICY_H_
+#ifndef OPEN_SPIEL_ALGORITHMS_DETERMINISTIC_POLICY_H_
+#define OPEN_SPIEL_ALGORITHMS_DETERMINISTIC_POLICY_H_
+
+#include <stdint.h>
 
 #include <algorithm>
 #include <iterator>
+#include <map>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -27,6 +30,10 @@
 
 namespace open_spiel {
 namespace algorithms {
+
+// Returns the number of deterministic policies for this player in this game,
+// if the number is less than 2^64-1. Otherwise, returns -1.
+int64_t NumDeterministicPolicies(const Game& game, Player player);
 
 // An simple container object used to store the legal actions (and chosen
 // action) for each information state.
@@ -72,6 +79,9 @@ class DeterministicTabularPolicy : public Policy {
   ActionsAndProbs GetStatePolicy(const std::string& info_state) const override;
   Action GetAction(const std::string& info_state) const;
 
+  // Returns the current deterministic policy as a TabularPolicy.
+  TabularPolicy GetTabularPolicy() const;
+
   // Determinstic policies are ordered. First, we define some order to the
   // information states (which is the order defined by the legal_actions_map
   // for the game). Then the total order over policies is defined in a
@@ -100,11 +110,11 @@ class DeterministicTabularPolicy : public Policy {
  private:
   void CreateTable(const Game& game, Player player);
 
-  std::unordered_map<std::string, LegalsWithIndex> table_;
+  std::map<std::string, LegalsWithIndex> table_;
   Player player_;
 };
 
 }  // namespace algorithms
 }  // namespace open_spiel
 
-#endif  // THIRD_PARTY_OPEN_SPIEL_ALGORITHMS_DETERMINISTIC_POLICY_H_
+#endif  // OPEN_SPIEL_ALGORITHMS_DETERMINISTIC_POLICY_H_

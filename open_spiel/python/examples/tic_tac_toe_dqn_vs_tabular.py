@@ -27,7 +27,7 @@ import sys
 from absl import app
 from absl import flags
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from open_spiel.python import rl_environment
 from open_spiel.python.algorithms import dqn
@@ -62,7 +62,7 @@ def command_line_action(time_step):
   while action not in legal_actions:
     print("Choose an action from {}:".format(legal_actions))
     sys.stdout.flush()
-    action_str = raw_input()
+    action_str = input()
     try:
       action = int(action_str)
     except ValueError:
@@ -145,7 +145,7 @@ def main(_):
     # Play from the command line against the trained DQN agent.
     human_player = 1
     while True:
-      logging.info("You are playing as %s", "O" if human_player else "X")
+      logging.info("You are playing as %s", "X" if human_player else "0")
       time_step = env.reset()
       while not time_step.last():
         player_id = time_step.observations["current_player"]

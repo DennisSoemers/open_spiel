@@ -12,9 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_OPEN_SPIEL_ALGORITHMS_CFR_H_
-#define THIRD_PARTY_OPEN_SPIEL_ALGORITHMS_CFR_H_
+#ifndef OPEN_SPIEL_ALGORITHMS_CFR_H_
+#define OPEN_SPIEL_ALGORITHMS_CFR_H_
 
+#include <memory>
+#include <random>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "open_spiel/abseil-cpp/absl/types/optional.h"
 #include "open_spiel/policy.h"
 #include "open_spiel/spiel.h"
 
@@ -31,7 +38,15 @@ struct CFRInfoStateValues {
         current_policy(la.size(), 1.0 / la.size()) {}
   CFRInfoStateValues(std::vector<Action> la) : CFRInfoStateValues(la, 0) {}
 
-  void ApplyRegretMatching();  // Fills current_policy.
+  // Fills current_policy according to the standard application of the
+  // regret-matching algorithm in the CFR papers.
+  void ApplyRegretMatching();
+
+  // Apply regret matching but over max(R^{T,+}(s,a), delta) rather than just
+  // R^{T,+}(s,a). This is mostly unused but sometimes useful for debugging
+  // convergence.
+  void ApplyRegretMatchingAllPositive(double delta);
+
   bool empty() const { return legal_actions.empty(); }
   int num_actions() const { return legal_actions.size(); }
 
@@ -41,6 +56,9 @@ struct CFRInfoStateValues {
   // Samples from current policy using randomly generated z, adding epsilon
   // exploration (mixing in uniform).
   int SampleActionIndex(double epsilon, double z);
+
+  // Extracts the current policy. Note: assumes it is filled.
+  ActionsAndProbs GetCurrentPolicy() const;
 
   std::vector<Action> legal_actions;
   std::vector<double> cumulative_regrets;
@@ -57,17 +75,22 @@ using CFRInfoStateValuesTable =
 class CFRAveragePolicy : public Policy {
  public:
   // Returns the average policy from the CFR values.
-  // If an info state is not found, return the default policy for the info state
-  // (or an empty policy if default_policy is nullptr). If an info state has
-  // zero cumulative regret for all actions, return a uniform policy.
+  // If a state/info state is not found, return the default policy for the
+  // state/info state (or an empty policy if default_policy is nullptr).
+  // If an info state has zero cumulative regret for all actions,
+  // return a uniform policy.
   CFRAveragePolicy(const CFRInfoStateValuesTable& info_states,
-                   std::shared_ptr<TabularPolicy> default_policy);
+                   std::shared_ptr<Policy> default_policy);
+  ActionsAndProbs GetStatePolicy(const State& state) const override;
   ActionsAndProbs GetStatePolicy(const std::string& info_state) const override;
 
  private:
   const CFRInfoStateValuesTable& info_states_;
   bool default_to_uniform_;
-  std::shared_ptr<TabularPolicy> default_policy_;
+  std::shared_ptr<Policy> default_policy_;
+  void GetStatePolicyFromInformationStateValues(
+      const CFRInfoStateValues& is_vals,
+      ActionsAndProbs* actions_and_probs) const;
 };
 
 // A policy that extracts the current policy from the CFR table values.
@@ -77,12 +100,17 @@ class CFRCurrentPolicy : public Policy {
   // passed in, then it means that it is used if the lookup fails (use nullptr
   // to not use a default policy).
   CFRCurrentPolicy(const CFRInfoStateValuesTable& info_states,
-                   std::shared_ptr<TabularPolicy> default_policy);
+                   std::shared_ptr<Policy> default_policy);
+  ActionsAndProbs GetStatePolicy(const State& state) const override;
   ActionsAndProbs GetStatePolicy(const std::string& info_state) const override;
+  TabularPolicy AsTabular() const;
 
  private:
   const CFRInfoStateValuesTable& info_states_;
-  std::shared_ptr<TabularPolicy> default_policy_;
+  std::shared_ptr<Policy> default_policy_;
+  ActionsAndProbs GetStatePolicyFromInformationStateValues(
+      const CFRInfoStateValues& is_vals,
+      ActionsAndProbs& actions_and_probs) const;
 };
 
 // Base class supporting different flavours of the Counterfactual Regret
@@ -103,7 +131,8 @@ class CFRCurrentPolicy : public Policy {
 class CFRSolverBase {
  public:
   CFRSolverBase(const Game& game, bool alternating_updates,
-                bool linear_averaging, bool regret_matching_plus);
+                bool linear_averaging, bool regret_matching_plus,
+                bool random_initial_regrets = false, int seed = 0);
   virtual ~CFRSolverBase() = default;
 
   // Performs one step of the CFR algorithm.
@@ -140,7 +169,7 @@ class CFRSolverBase {
   // and if `policy_overrides[p] != nullptr` it will be used instead of the
   // current policy. This feature exists to support CFR-BR.
   std::vector<double> ComputeCounterFactualRegret(
-      const State& state, const std::optional<int>& alternating_player,
+      const State& state, const absl::optional<int>& alternating_player,
       const std::vector<double>& reach_probabilities,
       const std::vector<const Policy*>* policy_overrides);
 
@@ -149,7 +178,7 @@ class CFRSolverBase {
 
  private:
   std::vector<double> ComputeCounterFactualRegretForActionProbs(
-      const State& state, const std::optional<int>& alternating_player,
+      const State& state, const absl::optional<int>& alternating_player,
       const std::vector<double>& reach_probabilities, const int current_player,
       const std::vector<double>& info_state_policy,
       const std::vector<Action>& legal_actions,
@@ -181,8 +210,14 @@ class CFRSolverBase {
   const bool regret_matching_plus_;
   const bool alternating_updates_;
   const bool linear_averaging_;
+  const bool random_initial_regrets_;
 
   const int chance_player_;
+
+  // CFR generally does not use this random number generator. However, this is
+  // used for random initial regrets (and could be useful for some helper
+  // methods for debugging).
+  std::mt19937 rng_;
 };
 
 // Standard CFR implementation.
@@ -217,4 +252,4 @@ class CFRPlusSolver : public CFRSolverBase {
 }  // namespace algorithms
 }  // namespace open_spiel
 
-#endif  // THIRD_PARTY_OPEN_SPIEL_ALGORITHMS_CFR_H_
+#endif  // OPEN_SPIEL_ALGORITHMS_CFR_H_

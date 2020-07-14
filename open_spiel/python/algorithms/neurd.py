@@ -30,9 +30,12 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from open_spiel.python.algorithms import rcfr
+
+# Temporarily disable TF2 behavior while the code is not updated.
+tf.disable_v2_behavior()
 
 
 def thresholded(logits, regrets, threshold=2.0):

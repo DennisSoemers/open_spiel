@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_OPEN_SPIEL_ALGORITHMS_CFR_BR_H_
-#define THIRD_PARTY_OPEN_SPIEL_ALGORITHMS_CFR_BR_H_
+#ifndef OPEN_SPIEL_ALGORITHMS_CFR_BR_H_
+#define OPEN_SPIEL_ALGORITHMS_CFR_BR_H_
 
 #include <memory>
+#include <vector>
 
 #include "open_spiel/algorithms/best_response.h"
 #include "open_spiel/algorithms/cfr.h"
@@ -37,14 +38,14 @@ class CFRBRSolver : public CFRSolverBase {
   void EvaluateAndUpdatePolicy() override;
 
  private:
-  // Policies that are used instead of the current policy for some the opponent
-  // players.
+  // Policies that are used instead of the current policy for some of the
+  // opponent players.
   std::vector<const Policy*> policy_overrides_;
-  TabularPolicy uniform_policy_;
+  UniformPolicy uniform_policy_;
   std::vector<std::unique_ptr<TabularBestResponse>> best_response_computers_;
 };
 
 }  // namespace algorithms
 }  // namespace open_spiel
 
-#endif  // THIRD_PARTY_OPEN_SPIEL_ALGORITHMS_CFR_BR_H_
+#endif  // OPEN_SPIEL_ALGORITHMS_CFR_BR_H_

@@ -14,10 +14,31 @@
 
 #include "open_spiel/algorithms/deterministic_policy.h"
 
+#include <climits>
+
 #include "open_spiel/algorithms/get_legal_actions_map.h"
+#include "open_spiel/policy.h"
 
 namespace open_spiel {
 namespace algorithms {
+
+int64_t NumDeterministicPolicies(const Game& game, Player player) {
+  int64_t num_policies = 1;
+  std::unordered_map<std::string, std::vector<Action>> legal_actions_map =
+      GetLegalActionsMap(game, -1, player);
+  for (const auto& infostate_str_actions : legal_actions_map) {
+    int64_t num_actions = infostate_str_actions.second.size();
+    SPIEL_CHECK_GT(num_actions, 0);
+
+    // Check for integer overflow.
+    if (num_policies > INT64_MAX / num_actions) {
+      return -1;
+    }
+
+    num_policies *= num_actions;
+  }
+  return num_policies;
+}
 
 DeterministicTabularPolicy::DeterministicTabularPolicy(
     const Game& game, Player player,
@@ -44,8 +65,7 @@ ActionsAndProbs DeterministicTabularPolicy::GetStatePolicy(
   ActionsAndProbs state_policy;
   Action policy_action = iter->second.GetAction();
   for (const auto& action : iter->second.legal_actions_) {
-    state_policy.push_back(
-        std::pair<Action, double>(action, action == policy_action ? 1.0 : 0.0));
+    state_policy.push_back({action, action == policy_action ? 1.0 : 0.0});
   }
   return state_policy;
 }
@@ -55,6 +75,19 @@ Action DeterministicTabularPolicy::GetAction(
   auto iter = table_.find(info_state);
   SPIEL_CHECK_TRUE(iter != table_.end());
   return iter->second.GetAction();
+}
+
+TabularPolicy DeterministicTabularPolicy::GetTabularPolicy() const {
+  TabularPolicy tabular_policy;
+  for (const auto& infostate_and_legals : table_) {
+    ActionsAndProbs state_policy;
+    Action policy_action = infostate_and_legals.second.GetAction();
+    for (const auto& action : infostate_and_legals.second.legal_actions_) {
+      state_policy.push_back({action, action == policy_action ? 1.0 : 0.0});
+    }
+    tabular_policy.SetStatePolicy(infostate_and_legals.first, state_policy);
+  }
+  return tabular_policy;
 }
 
 bool DeterministicTabularPolicy::NextPolicy() {

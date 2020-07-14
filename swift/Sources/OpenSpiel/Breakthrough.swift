@@ -30,8 +30,8 @@ public class Breakthrough: GameProtocol {
     rewardModel: .terminal,
     maxPlayers: 2,
     minPlayers: 2,
-    providesInformationState: true,
-    providesInformationStateAsNormalizedVector: true
+    providesInformationStateString: true,
+    providesInformationStateTensor: true
   )
 
   /// Represents the two player agents.
@@ -148,13 +148,13 @@ public class Breakthrough: GameProtocol {
       }
     }
 
-    public func informationState(for player: Player) -> String {
+    public func informationStateString(for player: Player) -> String {
       String(describing: self)
     }
 
-    public func informationStateAsNormalizedVector(for player: Player) -> [Double] {
+    public func informationStateTensor(for player: Player) -> [Double] {
       var state = Array<Double>(repeating: 0,
-                                count: game.informationStateNormalizedVectorShape.reduce(1, *))
+                                count: game.informationStateTensorShape.reduce(1, *))
       // Note: this implementation is intended to produce the same information state vectors as the
       // original C++ implementation.
       let planeSize = Int(game.boardWidth * game.boardHeight)
@@ -195,7 +195,7 @@ public class Breakthrough: GameProtocol {
     }
     return actions
   }()
-  public var informationStateNormalizedVectorShape: [Int] {
+  public var informationStateTensorShape: [Int] {
     [3, /* # of cell states */
     Int(boardHeight),
     Int(boardWidth)]
@@ -249,6 +249,33 @@ public extension Breakthrough.State {
   }
   var currentBTPlayer: Breakthrough.BreakthroughPlayer? {
     Breakthrough.BreakthroughPlayer(currentPlayer)
+  }
+  
+  var legalActions: [Game.Action] {
+    var actions = [Game.Action]()
+    actions.reserveCapacity(Int(game.boardWidth * game.boardHeight))
+    let curBTPlayer = currentBTPlayer!
+    for i in 0..<game.boardWidth {
+      for j in 0..<game.boardHeight {
+        let boardLoc = Breakthrough.BoardLocation(x: i, y: j)
+        // Skip all board locations that don't have a pawn that corresponds to the current player.
+        if self[boardLoc] != curBTPlayer { continue }
+        // Iterate across all possible directions.
+        for direction in Breakthrough.Direction.allCases {
+          // Compute the moved board location & verify it's still on the board.
+          guard case let movedBoardLoc? = boardLoc.move(in: direction, for: curBTPlayer),
+              game.isValid(location: movedBoardLoc) else { continue }
+          // If the moved board location is already occupied by one of our own pawns, it's
+          // not an available move.
+          if self[movedBoardLoc] == curBTPlayer { continue }
+          // If we're trying to move forward and it's not empty, it's not a valid move.
+          if direction == .forward && self[movedBoardLoc] != nil { continue }
+          // Append the available actions to the possible actions list.
+          actions.append(Game.Action(location: boardLoc, direction: direction))
+        }
+      }
+    }
+    return actions
   }
 
   var legalActionsMask: [Bool] {
