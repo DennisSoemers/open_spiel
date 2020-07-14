@@ -27,7 +27,11 @@
 // loaded from the Ludii General Game System:
 // https://ludii.games/
 //
-// Parameters: TODO
+// // Parameters: TODO
+//
+//
+// Note: implementation partially based on
+// https://github.com/facebookincubator/Polygames/blob/master/games/ludii/ludii_game_wrapper.h
 
 namespace open_spiel {
 namespace ludii_game {
@@ -44,6 +48,7 @@ class LudiiState : public State {
   Player CurrentPlayer() const override {
     return IsTerminal() ? kTerminalPlayerId : current_player_;
   }
+
   std::string ActionToString(Player player, Action action_id) const override;
   std::string ToString() const override;
   bool IsTerminal() const override;
@@ -68,7 +73,8 @@ class LudiiState : public State {
 class LudiiGame : public Game {
  public:
   explicit LudiiGame(const GameParameters& params);
-  int NumDistinctActions() const override { return kNumCells; }
+
+  int NumDistinctActions() const override;
   std::unique_ptr<State> NewInitialState() const override {
     return std::unique_ptr<State>(new LudiiState(shared_from_this()));
   }
@@ -83,14 +89,24 @@ class LudiiGame : public Game {
     return {kCellStates, kNumRows, kNumCols};
   }
   int MaxGameLength() const override { return kNumCells; }
+
+  // Our object of Java's LudiiGameWrapper type. No need to make deep copies of this in Java
+  jobject ludiiGameWrapperJavaObject;
+
+ private:
+  // Pointer to the JNI environment, allows for communication with Ludii's Java code
+  JNIEnv* jenv;
+
+  // Method IDs for various Java methods
+  jmethodID numPlayersMethodID;
+  jmethodID stateTensorsShapeMethodID;
+
+  // Shape for state tensors.
+  // This remains constant throughout episodes, so can just compute it once and store
+  const int num_state_channels;
+  const int num_state_cols;
+  const int num_state_rows;
 };
-
-CellState PlayerToState(Player player);
-std::string StateToString(CellState state);
-
-inline std::ostream& operator<<(std::ostream& stream, const CellState& state) {
-  return stream << StateToString(state);
-}
 
 }  // namespace ludii_game
 }  // namespace open_spiel
