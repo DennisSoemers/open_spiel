@@ -22,8 +22,11 @@ Tested on Ubuntu 16.04 with Java 8 openJDK and Ludii player (0.3.0).
 3.  See `open_spiel/scripts/global_variables.sh` for enabling Ludii as an
 	optional dependency.
 
-4.  Build OpenSpiel as usual, then run `build/games/ludii/ludii_demo <path to
-    Ludii jar>`
+4.  Build OpenSpiel as usual. The `open_spiel/scripts/install.sh` script will
+	automatically download the latest Ludii.jar file and place it in the
+	`open_spiel/games/ludii` directory if the optional Ludii dependency is enabled. 
+	Alternatively, you may also manually download Ludii's JAR file and place it in that 
+	directory.
 
 If `libjvm.so` is not found, run:
 
