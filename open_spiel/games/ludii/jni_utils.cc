@@ -21,14 +21,18 @@
 namespace open_spiel {
 namespace ludii {
 
-JNIUtils::JNIUtils(std::string jar_location) { InitJVM(jar_location); }
+JavaVM* JNIUtils::jvm = nullptr;
+JNIEnv* JNIUtils::env = nullptr;
+jint JNIUtils::res = 0;
 
-JNIUtils::~JNIUtils() { CloseJVM(); }
-
-JNIEnv *JNIUtils::GetEnv() const { return env; }
+JNIEnv *JNIUtils::GetEnv() { return env; }
 
 void JNIUtils::InitJVM(std::string jar_location) {
+  if (env != nullptr)
+    return;		// We've already initialised the JVM
+
   std::cout << "intializing JVM" << std::endl;
+  if (jar_location.empty()) jar_location = "ludii/Ludii.jar";
 #ifdef JNI_VERSION_1_2
   JavaVMInitArgs vm_args;
   JavaVMOption options[1];
@@ -54,11 +58,48 @@ void JNIUtils::InitJVM(std::string jar_location) {
   res = JNI_CreateJavaVM(&jvm, &env, &vm_args);
   free(c_classpath);
 #endif /* JNI_VERSION_1_2 */
+
+  // Find our LudiiGameWrapper Java class
+  ludiiGameWrapperClass = (jclass) env->NewGlobalRef(env->FindClass("utils/LudiiGameWrapper"));
+
+  // Find our LudiiStateWrapper Java class
+  ludiiStateWrapperClass = (jclass) env->NewGlobalRef(env->FindClass("utils/LudiiStateWrapper"));
+
+  // Find the method ID for the static method giving us the Ludii versio
+  ludiiVersionMethodID = env->GetStaticMethodID(ludiiGameWrapperClass, "ludiiVersion", "()Ljava/lang/String;");
+
+  std::cout << "Using Ludii version " << LudiiVersion() << std::endl;
 }
 
 void JNIUtils::CloseJVM() {
-  std::cout << "destroying JVM" << std::endl;
+  env->DeleteGlobalRef(ludiiStateWrapperClass);
+  env->DeleteGlobalRef(ludiiGameWrapperClass);
   jvm->DestroyJavaVM();
+
+  jvm = nullptr;
+  env = nullptr;
+  res = 0;
+}
+
+// These will be assigned proper values by InitJVM() call
+jclass JNIUtils::ludiiGameWrapperClass = nullptr;
+jclass JNIUtils::ludiiStateWrapperClass = nullptr;
+jmethodID JNIUtils::ludiiVersionMethodID = nullptr;
+
+jclass JNIUtils::LudiiGameWrapperClass() {
+  return ludiiGameWrapperClass;
+}
+
+jclass JNIUtils::LudiiStateWrapperClass() {
+  return ludiiStateWrapperClass;
+}
+
+const std::string JNIUtils::LudiiVersion() {
+  jstring jstr = (jstring) (env->CallStaticObjectMethod(ludiiGameWrapperClass, ludiiVersionMethodID));
+  const char* strReturn = env->GetStringUTFChars(jstr, (jboolean*) 0);
+  const std::string str = strReturn;
+  env->ReleaseStringUTFChars(jstr, strReturn);
+  return str;
 }
 
 }  // namespace ludii

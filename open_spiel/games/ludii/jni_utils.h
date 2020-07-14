@@ -23,20 +23,39 @@
 namespace open_spiel {
 namespace ludii {
 
+/**
+ * Implementation of this file partially based on:
+ * 	https://gist.github.com/alexminnaar/90cf1ea3de45e79a1b14081d90d214b7
+ * 	https://github.com/facebookincubator/Polygames/blob/master/games/ludii/jni_utils.h
+ */
 class JNIUtils {
  public:
-  JNIUtils(const std::string jar_location);
-  ~JNIUtils();
+  static JNIEnv *GetEnv();
 
-  JNIEnv *GetEnv() const;
+  static void InitJVM(std::string jar_location);
+  static void CloseJVM();
 
-  void InitJVM(std::string jar_location);
-  void CloseJVM();
+  static jclass LudiiGameWrapperClass();
+  static jclass LudiiStateWrapperClass();
+
+  /**
+   * @return A string description of the version of Ludii that we're working with.
+   */
+  static const std::string LudiiVersion();
 
  private:
-  JavaVM *jvm;
-  JNIEnv *env;
-  jint res;
+  static JavaVM *jvm;
+  static JNIEnv *env;
+  static jint res;
+
+  /** Our LudiiGameWrapper class in Java */
+  static jclass ludiiGameWrapperClass;
+
+  /** Our LudiiStateWrapper class in Java */
+  static jclass ludiiStateWrapperClass;
+
+  /** Method ID for the ludiiVersion() method in Java */
+  static jmethodID ludiiVersionMethodID;
 };
 
 }  // namespace ludii
