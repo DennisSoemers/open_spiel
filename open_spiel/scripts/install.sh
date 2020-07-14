@@ -102,6 +102,12 @@ if [[ ${BUILD_WITH_HANABI:-"ON"} == "ON" ]] && [[ ! -d ${DIR} ]]; then
   popd
 fi
 
+# Optionally download the JAR file of the Ludii general game system
+if [[ ${BUILD_WITH_LUDII:-"ON"} == "ON" ]]; then
+  # This will always download the latest Ludii.jar file and place it in the correct directory
+  wget -P open_spiel/games/ludii https://ludii.games/downloads/Ludii.jar
+fi
+
 # This Github repository contains the raw code from the ACPC server
 # http://www.computerpokercompetition.org/downloads/code/competition_server/project_acpc_server_v1.0.42.tar.bz2
 # with the code compiled as C++ within a namespace.

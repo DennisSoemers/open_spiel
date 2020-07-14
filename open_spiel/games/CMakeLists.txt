@@ -125,8 +125,9 @@ if (${BUILD_WITH_XINXIN})
   add_subdirectory(hearts)
 endif()
 
-# Uncomment to build the Ludii demo
-# add_subdirectory (ludii)
+if (${BUILD_WITH_LUDII})
+  add_subdirectory (ludii)
+endif()
 
 add_library(bridge_double_dummy_solver OBJECT
   bridge/double_dummy_solver/include/dll.h
