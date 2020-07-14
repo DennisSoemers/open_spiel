@@ -110,6 +110,9 @@ endif()
 if (${BUILD_WITH_ACPC})
   set(GAME_SOURCES ${GAME_SOURCES} universal_poker.cc universal_poker.h)
 endif()
+if (${BUILD_WITH_LUDII})
+  set(GAME_SOURCES ${GAME_SOURCES} ludii_game.cc ludii_game.h)
+endif()
 
 add_library (games OBJECT ${GAME_SOURCES})
 
@@ -126,7 +129,7 @@ if (${BUILD_WITH_XINXIN})
 endif()
 
 if (${BUILD_WITH_LUDII})
-  add_subdirectory (ludii)
+  add_subdirectory(ludii)
 endif()
 
 add_library(bridge_double_dummy_solver OBJECT
@@ -303,6 +306,10 @@ add_executable(liars_dice_test liars_dice_test.cc ${OPEN_SPIEL_OBJECTS}
                $<TARGET_OBJECTS:tests>
                $<TARGET_OBJECTS:algorithms>)
 add_test(liars_dice_test liars_dice_test)
+
+add_executable(ludii_game_test ludii_game_test.cc ${OPEN_SPIEL_OBJECTS}
+               $<TARGET_OBJECTS:tests>)
+add_test(ludii_game_test ludii_game_test)
 
 add_executable(markov_soccer_test markov_soccer_test.cc ${OPEN_SPIEL_OBJECTS}
                $<TARGET_OBJECTS:tests>
