@@ -49,6 +49,7 @@ Manifest.toml
 .idea/
 .vscode/
 *~
+open_spiel/.project
 
 
 open_spiel/cmake-build-debug/
