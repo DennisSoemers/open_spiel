@@ -82,6 +82,8 @@ openspiel_optional_dependency(BUILD_WITH_PYTHON         ON
   "Build binary for Python.")
 openspiel_optional_dependency(BUILD_WITH_XINXIN         OFF
   "Build against xinxin Hearts program.")
+openspiel_optional_dependency(BUILD_WITH_LUDII          OFF
+  "Build optional support for the Ludii wrapper.")
 
 # Needed to disable Abseil tests.
 set (BUILD_TESTING OFF)
@@ -148,6 +150,10 @@ set (OPEN_SPIEL_OBJECTS
 if (BUILD_WITH_HANABI)
   set(OPEN_SPIEL_OBJECTS ${OPEN_SPIEL_OBJECTS}
       $<TARGET_OBJECTS:hanabi_learning_environment>)
+endif()
+if (BUILD_WITH_LUDII)
+  set(OPEN_SPIEL_OBJECTS ${OPEN_SPIEL_OBJECTS}
+      $<TARGET_OBJECTS:ludii>)
 endif()
 if (BUILD_WITH_ACPC)
   set(OPEN_SPIEL_OBJECTS ${OPEN_SPIEL_OBJECTS}

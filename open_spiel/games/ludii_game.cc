@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "open_spiel/games/ludii/ludii_game.h"
+#include "open_spiel/games/ludii_game.h"
 
 #include <algorithm>
 #include <memory>
