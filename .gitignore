@@ -50,6 +50,8 @@ Manifest.toml
 .vscode/
 *~
 open_spiel/.project
+.cproject
+.project
 
 
 open_spiel/cmake-build-debug/
