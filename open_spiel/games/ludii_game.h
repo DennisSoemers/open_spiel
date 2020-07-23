@@ -42,8 +42,8 @@ class LudiiState : public State {
  public:
   LudiiState(std::shared_ptr<const Game> game);
 
-  LudiiState(const TicTacToeState&) = default;
-  LudiiState& operator=(const TicTacToeState&) = default;
+  LudiiState(const LudiiState&) = default;
+  LudiiState& operator=(const LudiiState&) = default;
 
   Player CurrentPlayer() const override {
     return IsTerminal() ? kTerminalPlayerId : current_player_;
@@ -65,8 +65,32 @@ class LudiiState : public State {
   void DoApplyAction(Action move) override;
 
  private:
+  //--------------------------
+  // Regular OpenSpiel fields
+  //--------------------------
   Player current_player_ = 0;         // Player zero goes first
   Player outcome_ = kInvalidPlayer;
+
+  //--------------------------
+  // Ludii / Java fields
+  //--------------------------
+
+  /** Pointer to the JNI environment, allows for communication with Ludii's Java code */
+  JNIEnv* jenv;
+  /** Our Game wrapper */
+  LudiiGameWrapper ludiiGameWrapper;
+  /** Our object of Java's LudiiStateWrapper type */
+  jobject ludiiStateWrapperJavaObject;
+  /** Method ID for the returns() method in Java */
+  jmethodID returnsMethodID;
+  /** Method ID for the isTerminal() method in Java */
+  jmethodID isTerminalMethodID;
+  /** Method ID for the toTensor() method in Java */
+  jmethodID toTensorMethodID;
+  /** Method ID for the currentPlayer() method in Java */
+  jmethodID currentPlayerMethodID;
+  /** Method ID for the reset() method in Java */
+  jmethodID resetMethodID;
 };
 
 // Game object.
