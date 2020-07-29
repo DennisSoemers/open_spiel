@@ -27,7 +27,32 @@
 // loaded from the Ludii General Game System:
 // https://ludii.games/
 //
-// // Parameters: TODO
+// NOTE: we currently support up to 9 options being passed into Ludii
+// I don't think there are currently any Ludii games with anywhere close
+// to that many option categories, so this should suffice for a long time.
+//
+//
+// // Parameters:
+//       "game_name"   string  Name of the game (in Ludii) to load
+//                             (default "Tic-Tac-Toe.lud")
+//       "lud_opt_1"   string  First option to pass to Ludii if not equal to
+//                             empty string (default "")
+//       "lud_opt_2"   string  Second option to pass to Ludii if not equal to
+//                             empty string (default "")
+//       "lud_opt_3"   string  Third option to pass to Ludii if not equal to
+//                             empty string (default "")
+//       "lud_opt_4"   string  Fourth option to pass to Ludii if not equal to
+//                             empty string (default "")
+//       "lud_opt_5"   string  Fifth option to pass to Ludii if not equal to
+//                             empty string (default "")
+//       "lud_opt_6"   string  Sixth option to pass to Ludii if not equal to
+//                             empty string (default "")
+//       "lud_opt_7"   string  Seventh option to pass to Ludii if not equal to
+//                             empty string (default "")
+//       "lud_opt_8"   string  Eighth option to pass to Ludii if not equal to
+//                             empty string (default "")
+//       "lud_opt_9"   string  Ninth option to pass to Ludii if not equal to
+//                             empty string (default "")
 //
 //
 // Note: implementation partially based on
